@@ -129,9 +129,20 @@ setupkvm(void)
   for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
     if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
                 (uint)k->phys_start, k->perm) < 0) {
-      freevm(pgdir);
+      freekvm();
       return 0;
     }
+  return pgdir;
+}
+
+// copy kernel part of a page table
+pde_t*
+copykvm(void)
+{
+  pde_t *pgdir;
+  if((pgdir = (pde_t*)kalloc()) == 0)
+    return 0;
+  memmove(pgdir, kpgdir, PGSIZE);
   return pgdir;
 }
 
@@ -288,13 +299,26 @@ freevm(pde_t *pgdir)
   if(pgdir == 0)
     panic("freevm: no pgdir");
   deallocuvm(pgdir, KERNBASE, 0);
-  for(i = 0; i < NPDENTRIES; i++){
+  for(i = 0; i < (KERNBASE >> PDXSHIFT); i++){
     if(pgdir[i] & PTE_P){
       char * v = P2V(PTE_ADDR(pgdir[i]));
       kfree(v);
     }
   }
   kfree((char*)pgdir);
+}
+
+void
+freekvm()
+{
+  uint i;
+  for(i = 0; i < NPDENTRIES; i++){
+    if(kpgdir[i] & PTE_P){
+      char * v = P2V(PTE_ADDR(kpgdir[i]));
+      kfree(v);
+    }
+  }
+  kfree((char*)kpgdir);
 }
 
 // Clear PTE_U on a page. Used to create an inaccessible
@@ -320,7 +344,7 @@ copyuvm(pde_t *pgdir, uint sz)
   uint pa, i, flags;
   char *mem;
 
-  if((d = setupkvm()) == 0)
+  if((d = copykvm()) == 0)
     return 0;
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
