@@ -10,13 +10,13 @@ to be non-zero length, only really matters for tiny "kernels".
 kernel loaded at 1 megabyte. stack same place that bootasm.S left it.
 
 kinit() should find real mem size
-  and rescue useable memory below 1 meg
+    and rescue useable memory below 1 meg
 
 no paging, no use of page table hardware, just segments
 
 no user area: no magic kernel stack mapping
-  so no copying of kernel stack during fork
-  though there is a kernel stack page for each process
+    so no copying of kernel stack during fork
+    though there is a kernel stack page for each process
 
 no kernel malloc(), just kalloc() for user core
 
@@ -25,8 +25,8 @@ user pointers aren't valid in the kernel
 are interrupts turned on in the kernel? yes.
 
 pass curproc explicitly, or implicit from cpu #?
-  e.g. argument to newproc()?
-  hmm, you need a global curproc[cpu] for trap() &c
+    e.g. argument to newproc()?
+    hmm, you need a global curproc[cpu] for trap() &c
 
 no stack expansion
 
@@ -60,40 +60,40 @@ test children being inherited by grandparent &c
 some sleep()s should be interruptible by kill()
 
 locks
-  init_lock
-    sequences CPU startup
-  proc_table_lock
-    also protects next_pid
-  per-fd lock *just* protects count read-modify-write
-    also maybe freeness?
-  memory allocator
-  printf
+    init_lock
+        sequences CPU startup
+    proc_table_lock
+        also protects next_pid
+    per-fd lock *just* protects count read-modify-write
+        also maybe freeness?
+    memory allocator
+    printf
 
 in general, the table locks protect both free-ness and
-  public variables of table elements
-  in many cases you can use table elements w/o a lock
-  e.g. if you are the process, or you are using an fd
+    public variables of table elements
+    in many cases you can use table elements w/o a lock
+    e.g. if you are the process, or you are using an fd
 
 lock order
-  per-pipe lock
-  proc_table_lock fd_table_lock kalloc_lock
-  console_lock
+    per-pipe lock
+    proc_table_lock fd_table_lock kalloc_lock
+    console_lock
 
 do you have to be holding the mutex in order to call wakeup()? yes
 
 device interrupts don't clear FL_IF
-  so a recursive timer interrupt is possible
+    so a recursive timer interrupt is possible
 
 what does inode->busy mean?
-  might be held across disk reads
-  no-one is allowed to do anything to the inode
-  protected by inode_table_lock
+    might be held across disk reads
+    no-one is allowed to do anything to the inode
+    protected by inode_table_lock
 inode->count counts in-memory pointers to the struct
-  prevents inode[] element from being re-used
-  protected by inode_table_lock
+    prevents inode[] element from being re-used
+    protected by inode_table_lock
 
 blocks and inodes have ad-hoc sleep-locks
-  provide a single mechanism?
+    provide a single mechanism?
 
 kalloc() can return 0; do callers handle this right?
 
@@ -110,13 +110,13 @@ sh: should sh support ; () &
 sh: stop stdin on ctrl-d (for cat > y)
 
 really should have bdwrite() for file content
-  and make some inode updates async
-  so soft updates make sense
+    and make some inode updates async
+    so soft updates make sense
 
 disk scheduling
 echo foo > bar should truncate bar
-  so O_CREATE should not truncate
-  but O_TRUNC should
+    so O_CREATE should not truncate
+    but O_TRUNC should
 
 make it work on a real machine
 release before acquire at end of sleep?

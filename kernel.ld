@@ -1,5 +1,5 @@
 /* Simple linker script for the JOS kernel.
-   See the GNU ld 'info' manual ("info ld") to learn the syntax. */
+     See the GNU ld 'info' manual ("info ld") to learn the syntax. */
 
 OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
@@ -8,7 +8,7 @@ ENTRY(_start)
 SECTIONS
 {
 	/* Link the kernel at this address: "." means the current address */
-        /* Must be equal to KERNLINK */
+                /* Must be equal to KERNLINK */
 	. = 0x80100000;
 
 	.text : AT(0x100000) {

@@ -43,7 +43,7 @@ for($i=0; $i<@lines; ){
 		$breakbefore = $i;
 		$lastblank = $i;
 		$sawbrace = 0;
-		$breaksize = 15;  # 15 lines to get to function
+		$breaksize = 15;    # 15 lines to get to function
 		for($j=$i; $j<$i+50 && $j < @lines; $j++){
 			if($lines[$j] =~ /PAGEBREAK!/){
 				$lines[$j] = "";
@@ -81,7 +81,7 @@ for($i=0; $i<@lines; ){
 				print STDERR "breakbefore $breakbefore i $i breaksize $breaksize\n";
 			}
 			$breakbefore = $lastblank;
-			$breaksize = 5;  # only 5 lines to get to blank line
+			$breaksize = 5;    # only 5 lines to get to blank line
 		}
 
 		# If we are not putting enough on a page, force a full page.

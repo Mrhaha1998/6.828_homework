@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo This script takes a minute to run.  Be patient. 1>&2
+echo This script takes a minute to run.    Be patient. 1>&2
 
 LC_CTYPE=C export LC_CTYPE
 
@@ -60,7 +60,7 @@ perl -e '
 		}
 		
 		if(/sheet1: (left|right)$/){
-			print STDERR "assuming that sheet 1 is a $1 page.  double-check!\n";
+			print STDERR "assuming that sheet 1 is a $1 page.    double-check!\n";
 			$left = $1 eq "left" ? "13579" : "02468";
 			$right = $1 eq "left" ? "02468" : "13579";
 			next;
@@ -192,7 +192,7 @@ do
 	uses=`egrep -h '([^a-zA-Z_0-9])'$i'($|[^a-zA-Z_0-9])' alltext | awk '{print $1}'`
 	if [ "x$defs" != "x$uses" ]; then
 		echo $i $defs
-		echo $uses |fmt -29 | sed 's/^/    /'
+		echo $uses |fmt -29 | sed 's/^/        /'
 #	else
 #		echo $i defined but not used >&2
 	fi
@@ -204,7 +204,7 @@ awk '
 {
 	printf("%04d %s\n", $2, $1);
 	for(i=3; i<=NF; i++)
-		printf("%04d    \" \n", $i);
+		printf("%04d        \" \n", $i);
 }
 ' s.defs > t.defs
 
@@ -216,7 +216,7 @@ awk '
 	pr -t -l50 -2 refs | ../pr.pl -h "cross-references" | pad
 	# pr.pl -h "definitions" -2 t.defs | pad
 	# pr.pl -h "cross-references" -2 refs | pad
-	../pr.pl blank  # make sheet 1 start on left page
+	../pr.pl blank    # make sheet 1 start on left page
 	../pr.pl blank
 	for i in $files
 	do
