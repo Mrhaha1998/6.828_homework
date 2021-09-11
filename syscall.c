@@ -14,12 +14,13 @@
 // to a saved program counter, and then the first argument.
 
 // Fetch the int at addr from the current process.
+
 int
 fetchint(uint addr, int *ip)
 {
     struct proc *curproc = myproc();
-
-    if(addr >= curproc->sz || addr+4 > curproc->sz)
+    int end = curproc->heap.start + curproc->heap.sz;
+    if(addr >= end || addr+4 > end)
         return -1;
     *ip = *(int*)(addr);
     return 0;
@@ -33,11 +34,11 @@ fetchstr(uint addr, char **pp)
 {
     char *s, *ep;
     struct proc *curproc = myproc();
-
-    if(addr >= curproc->sz)
+    int end = curproc->heap.start + curproc->heap.sz;
+    if(addr >= end)
         return -1;
     *pp = (char*)addr;
-    ep = (char*)curproc->sz;
+    ep = (char*)curproc->stack.end;
     for(s = *pp; s < ep; s++){
         if(*s == 0)
             return s - *pp;
@@ -60,10 +61,10 @@ argptr(int n, char **pp, int size)
 {
     int i;
     struct proc *curproc = myproc();
- 
+    int end = curproc->heap.start + curproc->heap.sz;
     if(argint(n, &i) < 0)
         return -1;
-    if(size < 0 || (uint)i >= curproc->sz || (uint)i+size > curproc->sz)
+    if(size < 0 || (uint)i >= end || (uint)i+size > end)
         return -1;
     *pp = (char*)i;
     return 0;
@@ -132,7 +133,7 @@ static int (*syscalls[])(void) = {
 [SYS_dup2]        sys_dup2,
 };
 
-//#define SYSCALL_TRACE
+// #define SYSCALL_TRACE
 #ifdef SYSCALL_TRACE
 static char *syscall_names[] = {
 [SYS_fork]        "fork",

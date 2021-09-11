@@ -12,7 +12,7 @@ exec(char *path, char **argv)
 {
     char *s, *last;
     int i, off;
-    uint argc, sz, sp, ustack[3+MAXARG+1];
+    uint argc, sp, ustack[3+MAXARG+1];
     struct elfhdr elf;
     struct inode *ip;
     struct proghdr ph;
@@ -41,7 +41,6 @@ exec(char *path, char **argv)
 
     text_data.start = text_data.end = text_data.sz = 0;
     // Load program into memory.
-    sz = 0;
     for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
         if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
             goto bad;
@@ -51,22 +50,23 @@ exec(char *path, char **argv)
             goto bad;
         if(ph.vaddr + ph.memsz < ph.vaddr)
             goto bad;
-        if(allocuvm(pgdir, sz, ph.vaddr+ph.memsz) < 0){
-            sz = ph.vaddr+ph.memsz;
+        if(allocuvm(pgdir, text_data.sz, ph.vaddr+ph.memsz) < 0){
             goto bad;    
         }
+        text_data.sz = ph.vaddr+ph.memsz;
         if(ph.vaddr % PGSIZE != 0)
             goto bad;
         if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0)
             goto bad;    
     }
+    text_data.end = PGROUNDUP(text_data.start + text_data.sz);
     iunlockput(ip);
     end_op();
     ip = 0;
 
     // Allocate two pages at the next page boundary.
     // Make the first inaccessible.    Use the second as the user stack.
-    stack.start = PGROUNDUP(text_data.end) + PGSIZE;
+    stack.start = text_data.end + PGSIZE;
     stack.sz = PGSIZE;
     stack.end = stack.start + PGSIZE;
     if(allocuvm(pgdir, stack.start, stack.end) < 0)
@@ -104,7 +104,6 @@ exec(char *path, char **argv)
     // Commit to the user image.
     oldpgdir = curproc->pgdir;
     curproc->pgdir = pgdir;
-    curproc->sz = sz;
     curproc->tf->eip = elf.entry;    // main
     curproc->tf->esp = sp;
     curproc->text_data = text_data;

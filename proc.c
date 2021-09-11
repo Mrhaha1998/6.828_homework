@@ -131,7 +131,10 @@ userinit(void)
     if((p->pgdir = copykvm()) == 0)
         panic("userinit: out of memory?");
     inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-    p->sz = PGSIZE;
+    p->stack.start = 0;
+    p->stack.sz = PGSIZE;
+    p->stack.end = PGSIZE;
+    p->heap = p->stack;
     memset(p->tf, 0, sizeof(*p->tf));
     p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
     p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
@@ -181,7 +184,6 @@ fork(void)
     np->text_data = curproc->text_data;
     np->stack = curproc->stack;
     np->heap = curproc->heap;
-    np->sz = curproc->sz;
     np->parent = curproc;
     *np->tf = *curproc->tf;
 
@@ -203,6 +205,7 @@ fork(void)
 
     release(&ptable.lock);
 
+    lcr3(V2P(curproc->pgdir)); 
     return pid;
 }
 

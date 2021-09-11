@@ -51,7 +51,7 @@ sys_sbrk(void)
     if(argint(0, &n) < 0)
         return -1;
     curproc = myproc();    
-    a = curproc->heap.start + curproc->heap.start + curproc->heap.sz;
+    a = curproc->heap.start + curproc->heap.sz;
     stack = curproc->stack.end;
     if (a + n < stack || a + n > KERNBASE) {
         return -1;

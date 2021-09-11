@@ -271,7 +271,7 @@ deallocuvm(pde_t *pgdir, uint vstart, uint vend)
     uint a;
 
     pte = 0;
-    for(a = vstart; a    < vend; a += PGSIZE){
+    for(a = vstart; a < vend; a += PGSIZE){
         unmappage(pgdir, (void *)a, &pte);
         if(!pte)
             a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
@@ -287,7 +287,7 @@ freevm(pde_t *pgdir)
 
     if(pgdir == 0)
         panic("freevm: no pgdir");
-    deallocuvm(pgdir, KERNBASE, 0);
+    deallocuvm(pgdir, 0, KERNBASE);
     for(i = 0; i < (KERNBASE >> PDXSHIFT); i++){
         if(pgdir[i] & PTE_P){
             char * v = P2V(PTE_ADDR(pgdir[i]));
@@ -346,7 +346,6 @@ void unmappage(pde_t *pgdir, void *va, pte_t **ptestrore)
     if(*pte & PTE_P){
         pa = PTE_ADDR(*pte);
         *pte = 0;
-        tlb_invalidate(pgdir, va);
         kdecref(pa);
 	}		
 }
@@ -361,7 +360,7 @@ tlb_invalidate(pde_t *pgdir, void *va)
 }
 
 void
-freekvm()
+freekvm(void)
 {
     uint i;
     for(i = 0; i < NPDENTRIES; i++){
@@ -401,7 +400,7 @@ copyuvm(struct proc *pp)
     if((d = copyseg(pgdir, d, &pp->stack)) == 0)
         return 0;
     if((d = copyseg(pgdir, d, &pp->heap)) == 0)
-        return 0;        
+        return 0;         
     return d;
 }
 

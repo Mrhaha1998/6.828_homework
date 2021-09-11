@@ -88,18 +88,17 @@ trap(struct trapframe *tf)
     case T_PGFLT:
         if(myproc() != 0 && (tf->err & FEC_US)) {
             struct proc *curproc;
-            uint error, faddr, stack, a;
+            uint error, faddr, a;
             pte_t *pte;
             char *mem;
 
             error = tf->err;
             faddr = PGROUNDDOWN(rcr2());
-            stack = PGROUNDUP(tf->esp);
             curproc = myproc();
             if((error & FEC_ALL) == FEC_ALL){   
                 // cow casue the fault
                 pte = walkpgdir(curproc->pgdir, (void*)faddr, 0);
-                if(pte == 0 || ((*pte & PTE_P) && (*pte & PTE_COW)))
+                if(pte == 0 || !((*pte & PTE_P) && (*pte & PTE_COW)))
                     goto bad;
                 if((mem = kalloc()) == 0){
                     cprintf("trap out of memory\n");
@@ -112,9 +111,10 @@ trap(struct trapframe *tf)
                     kfree(mem);
                     goto bad;
                 }
+                lcr3(V2P(curproc->pgdir));
                 break;
             }
-            if(stack - PGSIZE <= faddr && faddr < curproc->sz) {
+            if(curproc->stack.end <= faddr && faddr < curproc->heap.end) {
                 // lazy allocation
                 if((mem = kalloc()) == 0){
                     cprintf("trap out of memory\n");
@@ -126,6 +126,7 @@ trap(struct trapframe *tf)
                     kfree(mem);
                     goto bad;
                 }
+                lcr3(V2P(curproc->pgdir));
                 break;
             }
         bad:    

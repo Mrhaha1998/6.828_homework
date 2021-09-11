@@ -41,7 +41,6 @@ struct mm_area {
 };
 // Per-process state
 struct proc {
-    uint sz;                                         // Size of process memory (bytes)
     pde_t* pgdir;                                // Page table
     struct mm_area text_data;
     struct mm_area stack;
