@@ -19,8 +19,16 @@ uint ticks;
 #define FEC_P  0x001
 #define FEC_ALL 0x007
 
-extern int mappages(pde_t *, void *, uint, uint, int);
-pte_t *walkpgdir(pde_t *, const void *, int);
+
+
+void
+tlb_invalidate(pde_t *pgdir, void *va)
+{
+	// Flush the entry only if we're modifying the current address space.
+    struct proc *curproc = myproc();
+	if (!curproc || curproc->pgdir == pgdir)
+		invlpg(va);
+}
 
 void
 tvinit(void)
@@ -106,13 +114,7 @@ trap(struct trapframe *tf)
                 }    
                 a = PTE_ADDR(*pte);
                 memmove(mem, P2V(a), PGSIZE);
-                if(mappage(curproc->pgdir, (void*)faddr, V2P(mem), PTE_W|PTE_U) < 0){
-                    cprintf("trap out of memory (2)\n");
-                    kfree(mem);
-                    goto bad;
-                }
-                lcr3(V2P(curproc->pgdir));
-                break;
+                goto buildmap;
             }
             if(curproc->stack.end <= faddr && faddr < curproc->heap.end) {
                 // lazy allocation
@@ -121,14 +123,16 @@ trap(struct trapframe *tf)
                     goto bad;
                 }    
                 memset(mem, 0, PGSIZE);
-                if(mappage(curproc->pgdir, (void*)faddr, V2P(mem), PTE_W|PTE_U) < 0){
+                goto buildmap;
+            }
+        buildmap:
+            if(mappage(curproc->pgdir, (void*)faddr, V2P(mem), PTE_W|PTE_U) < 0){
                     cprintf("trap out of memory (3)\n");
                     kfree(mem);
                     goto bad;
-                }
-                lcr3(V2P(curproc->pgdir));
-                break;
             }
+            tlb_invalidate(curproc->pgdir, (void *)faddr);
+            break;    
         bad:    
             cprintf("pid %d %s: trap %d err %d on cpu %d "
                 "eip 0x%x addr 0x%x--kill proc\n",

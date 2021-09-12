@@ -350,14 +350,7 @@ void unmappage(pde_t *pgdir, void *va, pte_t **ptestrore)
 	}		
 }
 
-void
-tlb_invalidate(pde_t *pgdir, void *va)
-{
-	// Flush the entry only if we're modifying the current address space.
-    struct proc *curproc = myproc();
-	if (!curproc || curproc->pgdir == pgdir)
-		invlpg(va);
-}
+
 
 void
 freekvm(void)

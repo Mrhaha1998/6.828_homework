@@ -164,6 +164,7 @@ void                        timerinit(void);
 void                        idtinit(void);
 extern uint                 ticks;
 void                        tvinit(void);
+void                        tlb_invalidate(pde_t*, void*);
 extern struct spinlock tickslock;
 
 // uart.c
@@ -193,8 +194,7 @@ void                        clearpteu(pde_t*, char *);
 int                         mapregion(pde_t*, void*, uint, uint, int);
 int                         mappage(pde_t*, void*, uint, int);
 void                        unmappage(pde_t*, void*, pte_t**);
-void                        tlb_invalidate(pde_t*, void*);
 pde_t*                      copyseg(pde_t*, pde_t*, struct mm_area*);
-
+pte_t*                      walkpgdir(pde_t *, const void *, int);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
