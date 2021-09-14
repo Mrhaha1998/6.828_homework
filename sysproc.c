@@ -7,6 +7,12 @@
 #include "mmu.h"
 #include "proc.h"
 
+struct callerregs {
+    uint eax;
+    uint ecx;
+    uint edx;
+};
+
 int
 sys_fork(void)
 {
@@ -105,5 +111,52 @@ sys_date(void)
         return -1;
     }
     cmostime((struct rtcdate*)date);
+    return 0;
+}
+
+int
+sys_alarm(void)
+{
+    int ticks;
+    void (*handler)();
+
+    if(argint(0, &ticks) < 0)
+        return -1;
+    if(argptr(1, (char**)&handler, 1) < 0)
+        return -1;
+    if((uint)handler >= KERNBASE)
+        return -1;
+    myproc()->alarmticks = ticks;
+    myproc()->alarmticksleft = ticks;
+    myproc()->alarmhandler = handler;
+    return 0;
+}
+
+int
+sys_rstoregs(void)
+{
+
+    /*  ----------------------
+        |栈上注入的代码      |
+        ----------------------
+        |保存的寄存器值       |
+        ----------------------
+        |保存的寄存器的值的地址|
+        ----------------------  <--  tf->esp
+        |注入代码地址         |
+        ---------------------- 
+                */
+    struct callerregs *regs;
+    struct trapframe *tf;
+
+    if(argptr(0, (char **)&regs, 3*4) < 0)
+        return -1;
+    tf = myproc()->tf;
+    tf->eax = regs->eax;
+    tf->ecx = regs->ecx;
+    tf->edx = regs->edx;
+    tf->eip = *(uint*)(tf->esp);
+    tf->esp +=  28;
+    myproc()->inalarmhandler = 0;
     return 0;
 }

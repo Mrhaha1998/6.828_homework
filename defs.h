@@ -162,7 +162,7 @@ void                        timerinit(void);
 
 // trap.c
 void                        idtinit(void);
-extern uint                 ticks;
+extern uint ticks;
 void                        tvinit(void);
 void                        tlb_invalidate(pde_t*, void*);
 extern struct spinlock tickslock;

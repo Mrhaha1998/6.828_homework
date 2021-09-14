@@ -98,6 +98,9 @@ found:
     p->text_data.start = p->text_data.end = p->text_data.sz = 0;
     p->stack = p->text_data;
     p->heap = p->text_data;
+    p->alarmhandler = 0;
+    p->inalarmhandler = 0;
+    p->alarmticks = p->alarmticksleft = 0;
     sp = p->kstack + KSTACKSIZE;
 
     // Leave room for trap frame.
