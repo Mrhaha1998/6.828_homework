@@ -158,5 +158,5 @@ sys_rstoregs(void)
     tf->eip = *(uint*)(tf->esp);
     tf->esp +=  28;
     myproc()->inalarmhandler = 0;
-    return 0;
+    return tf->eax;
 }
