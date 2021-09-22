@@ -36,9 +36,11 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct mm_area {
     int start;
-    int end;
     int sz;
 };
+
+#define MAXSTACK (PGSIZE << 1)
+
 // Per-process state
 struct proc {
     pde_t* pgdir;                                // Page table

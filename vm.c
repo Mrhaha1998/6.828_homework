@@ -232,31 +232,26 @@ allocuvm(pde_t *pgdir, uint vstart, uint vend)
 
 int expandheap(pde_t *pgdir, struct mm_area *area, int sz)
 {
-    int trueend;
-
-    if(sz < 0 || area->start + area->sz + sz > KERNBASE)
+    int newsz = area->sz + sz;
+    if(area->start + newsz > KERNBASE)
         return -1;
-    area->sz += sz; 
-    trueend = area->start + area->sz;    
-    if(PGROUNDUP(trueend) > area->end){
-        area->end = PGROUNDUP(trueend);
-    }
+    area->sz = newsz; 
     return 0;
 }
 
 int shrinkheap(pde_t *pgdir, struct mm_area *area, int sz)
 {
-    int trueend, oldend;
+    int oldsz, newsz;
+    uint saddr, eaddr;
 
-    if(sz > 0 || sz > area->sz)
+    if(sz > area->sz)
         return -1;
-    area->sz -= sz;
-    trueend = area->start + area->sz;    
-    if(PGROUNDUP(trueend) < area->end){
-        oldend = area->end;
-        area->end = PGROUNDUP(trueend);
-        deallocuvm(pgdir, area->end, oldend);
-    }
+    oldsz = area->sz;
+    newsz  = oldsz - sz;
+    saddr = PGROUNDUP(area->start + newsz);
+    eaddr = PGROUNDUP(area->start + oldsz);
+    deallocuvm(pgdir, saddr, eaddr);
+    area->sz = newsz;
     return 0;
 }
 
@@ -404,7 +399,7 @@ copyseg(pde_t *opgdir, pde_t *npgdir, struct mm_area *seg)
     pte_t *pte1;
     uint flag, pa;
 
-    for(i = seg->start; i < seg->end; i += PGSIZE){
+    for(i = seg->start; i < PGROUNDUP(seg->start + seg->sz); i += PGSIZE){
         if((pte1 = walkpgdir(opgdir, (void *) i, 0)) == 0){
             i = PGADDR(PDX(i) + 1, 0, 0) - PGSIZE;
             continue;

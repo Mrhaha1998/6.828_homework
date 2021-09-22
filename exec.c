@@ -11,7 +11,7 @@ int
 exec(char *path, char **argv)
 {
     char *s, *last;
-    int i, off;
+    int off;
     uint argc, sp, ustack[3+MAXARG+1];
     struct elfhdr elf;
     struct inode *ip;
@@ -39,41 +39,39 @@ exec(char *path, char **argv)
     if((pgdir = copykvm()) == 0)
         goto bad;
 
-    text_data.start = text_data.end = text_data.sz = 0;
-    // Load program into memory.
-    for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-        if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
-            goto bad;
-        if(ph.type != ELF_PROG_LOAD)
-            continue;
-        if(ph.memsz < ph.filesz)
-            goto bad;
-        if(ph.vaddr + ph.memsz < ph.vaddr)
-            goto bad;
-        if(allocuvm(pgdir, text_data.sz, ph.vaddr+ph.memsz) < 0){
-            goto bad;    
-        }
-        text_data.sz = ph.vaddr+ph.memsz;
-        if(ph.vaddr % PGSIZE != 0)
-            goto bad;
-        if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0)
-            goto bad;    
+    text_data.start = text_data.sz = 0;
+    // Load program into memory. xv6 only use the first program segment
+    off = elf.phoff;
+    if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
+        goto bad;
+    if(ph.type != ELF_PROG_LOAD)
+        goto bad;
+    if(ph.memsz < ph.filesz)
+        goto bad;
+    if(ph.vaddr + ph.memsz < ph.vaddr)
+        goto bad;
+    if(allocuvm(pgdir, text_data.sz, ph.vaddr+ph.memsz) < 0){
+        goto bad;    
     }
-    text_data.end = PGROUNDUP(text_data.start + text_data.sz);
+    text_data.sz = ph.vaddr+ph.memsz;
+    if(ph.vaddr % PGSIZE != 0)
+        goto bad;
+    if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0)
+        goto bad;    
+
     iunlockput(ip);
     end_op();
     ip = 0;
 
     // Allocate two pages at the next page boundary.
     // Make the first inaccessible.    Use the second as the user stack.
-    stack.start = text_data.end + PGSIZE;
-    stack.sz = PGSIZE;
-    stack.end = stack.start + PGSIZE;
-    if(allocuvm(pgdir, stack.start, stack.end) < 0)
+    stack.start = PGROUNDUP(text_data.start + text_data.sz) + MAXSTACK;
+    stack.sz = PGSIZE;  
+    if(allocuvm(pgdir, stack.start, stack.start + stack.sz) < 0)
         goto bad;
-    sp = stack.end;
+    sp = stack.start + stack.sz;
 
-    heap.end = heap.start = stack.end;    
+    heap.start = sp;    
     heap.sz = 0;
 
     // Push argument strings, prepare rest of stack in ustack.

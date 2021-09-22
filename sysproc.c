@@ -51,19 +51,15 @@ sys_getpid(void)
 int
 sys_sbrk(void)
 {
-    int a, stack, n;
+    int a, n;
     struct proc *curproc;
 
     if(argint(0, &n) < 0)
         return -1;
     curproc = myproc();    
-    a = curproc->heap.start + curproc->heap.sz;
-    stack = curproc->stack.end;
-    if (a + n < stack || a + n > KERNBASE) {
-        return -1;
-    }
     if(n < 0)
         return shrinkheap(curproc->pgdir, &curproc->heap, -n);
+    a = curproc->heap.start + curproc->heap.sz;
     if(expandheap(curproc->pgdir, &curproc->heap, n) < 0)
         return -1;
     return a;

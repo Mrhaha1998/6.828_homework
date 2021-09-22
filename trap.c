@@ -73,9 +73,6 @@ trap(struct trapframe *tf)
         if(myproc() != 0 && (tf->cs & 3) == 3 
             && myproc()->alarmhandler && --myproc()->alarmticksleft == 0){
             myproc()->alarmticksleft = myproc()->alarmticks;
-            // tf->esp -= 4;
-            // *(uint*)(tf->esp) = tf->eip;
-            // tf->eip = (uint)myproc()->alarmhandler;
             if(!myproc()->inalarmhandler){
                 myproc()->inalarmhandler = 1;
 
@@ -134,45 +131,62 @@ trap(struct trapframe *tf)
 
             mem = 0;
             error = tf->err;
-            faddr = PGROUNDDOWN(rcr2());
+            faddr = rcr2();
             curproc = myproc();
             if((error & FEC_ALL) == FEC_ALL){   
                 // cow casue the fault
                 pte = walkpgdir(curproc->pgdir, (void*)faddr, 0);
                 if(pte == 0 || !((*pte & PTE_P) && (*pte & PTE_COW)))
-                    goto bad;
+                    goto segmentfault;
                 if((mem = kalloc()) == 0){
                     cprintf("trap out of memory\n");
-                    goto bad;
+                    goto segmentfault;
                 }    
                 a = PTE_ADDR(*pte);
                 memmove(mem, P2V(a), PGSIZE);
                 goto buildmap;
             }
-            if(curproc->stack.end <= faddr && faddr < curproc->heap.end) {
+            if(curproc->heap.start <= faddr && faddr < curproc->heap.start + curproc->heap.sz){
                 // lazy allocation
                 if((mem = kalloc()) == 0){
                     cprintf("trap out of memory\n");
-                    goto bad;
+                    goto segmentfault;
                 }    
                 memset(mem, 0, PGSIZE);
                 goto buildmap;
             }
+            if(faddr < curproc->stack.start && (error & (FEC_WR | FEC_P)) == FEC_WR 
+                && ((tf->esp == faddr + 4 || tf->esp == faddr + 2)) && tf->esp == curproc->stack.start){  // 压入的是双字或者单字
+                // stackoverflow
+                if(curproc->stack.sz == MAXSTACK){
+                    goto stackoverflow;
+                }
+                if((mem = kalloc()) == 0){
+                    cprintf("trap out of memory\n");
+                    goto segmentfault;
+                }
+                cprintf("pid %d %s: expand stack\n", myproc()->pid, myproc()->name);
+                curproc->stack.start -= PGSIZE;
+                curproc->stack.sz += PGSIZE;    
+                memset(mem, 0, PGSIZE);
+                goto buildmap;
+            }
         buildmap:
-            if(mappage(curproc->pgdir, (void*)faddr, V2P(mem), PTE_W|PTE_U) < 0){
+            if(mappage(curproc->pgdir, (void*)PGROUNDDOWN(faddr), V2P(mem), PTE_W|PTE_U) < 0){
                 cprintf("trap out of memory (2)\n");
                 kfree(mem);
-                goto bad;
+                goto segmentfault;
             }
             tlb_invalidate(curproc->pgdir, (void *)faddr);
-            break;    
-        bad:    
-            cprintf("pid %d %s: trap %d err %d on cpu %d "
-                "eip 0x%x addr 0x%x--kill proc\n",
-                myproc()->pid, myproc()->name, tf->trapno,
-                tf->err, cpuid(), tf->eip, rcr2());
+            break;   
+        segmentfault:    
+            cprintf("pid %d %s: segmentfault\n", myproc()->pid, myproc()->name);
             myproc()->killed = 1;
             break;
+        stackoverflow :  
+            cprintf("pid %d %s: stackoverflow\n", myproc()->pid, myproc()->name);
+            myproc()->killed = 1;
+            break;           
         }    
 
     //PAGEBREAK: 13
@@ -182,7 +196,13 @@ trap(struct trapframe *tf)
             cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n",
                             tf->trapno, cpuid(), tf->eip, rcr2());
             panic("trap");
-        }
+        }   
+        // In user space, assume process misbehaved.
+        cprintf("pid %d %s: trap %d err %d on cpu %d "
+            "eip 0x%x addr 0x%x--kill proc\n",
+            myproc()->pid, myproc()->name, tf->trapno,
+            tf->err, cpuid(), tf->eip, rcr2());
+        myproc()->killed = 1;
     }
 
     // Force process exit if it has been killed and is in user space.

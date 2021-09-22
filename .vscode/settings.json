@@ -3,6 +3,7 @@
     "proc.h": "c",
     "defs.h": "c",
     "syscall.h": "c",
-    "user.h": "c"
+    "user.h": "c",
+    "date.h": "c"
   }
 }

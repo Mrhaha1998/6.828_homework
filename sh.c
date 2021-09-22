@@ -69,7 +69,7 @@ runcmd(struct cmd *cmd)
 
     switch(cmd->type){
     default:
-        panic("runcmd");
+        panic("panic: runcmd");
 
     case EXEC:
         ecmd = (struct execcmd*)cmd;

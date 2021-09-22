@@ -95,7 +95,7 @@ found:
         p->state = UNUSED;
         return 0;
     }
-    p->text_data.start = p->text_data.end = p->text_data.sz = 0;
+    p->text_data.start =  p->text_data.sz = 0;
     p->stack = p->text_data;
     p->heap = p->text_data;
     p->alarmhandler = 0;
@@ -136,8 +136,7 @@ userinit(void)
     inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
     p->stack.start = 0;
     p->stack.sz = PGSIZE;
-    p->stack.end = PGSIZE;
-    p->heap = p->stack;
+    p->text_data = p->heap = p->stack;
     memset(p->tf, 0, sizeof(*p->tf));
     p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
     p->tf->ds = (SEG_UDATA << 3) | DPL_USER;

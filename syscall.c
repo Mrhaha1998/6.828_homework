@@ -15,12 +15,22 @@
 
 // Fetch the int at addr from the current process.
 
+static int checkaddr(uint addr)
+{
+    struct proc *curproc = myproc();
+    if( 
+        (curproc->text_data.start <= addr && addr < curproc->text_data.start + curproc->text_data.sz) ||
+        (curproc->stack.start <= addr && addr < curproc->stack.start + curproc->stack.sz) ||
+        (curproc->heap.start <= addr && addr < curproc->heap.start + curproc->heap.sz)
+    )
+        return 1;
+    return 0;
+}
 int
 fetchint(uint addr, int *ip)
 {
-    struct proc *curproc = myproc();
-    int end = curproc->heap.start + curproc->heap.sz;
-    if(addr >= end || addr+4 > end)
+
+    if(!checkaddr(addr) || !checkaddr(addr+4-1))
         return -1;
     *ip = *(int*)(addr);
     return 0;
@@ -34,11 +44,11 @@ fetchstr(uint addr, char **pp)
 {
     char *s, *ep;
     struct proc *curproc = myproc();
-    int end = curproc->heap.start + curproc->heap.sz;
-    if(addr >= end)
+
+    if(!checkaddr(addr))
         return -1;
     *pp = (char*)addr;
-    ep = (char*)curproc->stack.end;
+    ep = (char*)(curproc->heap.start + curproc->heap.sz);
     for(s = *pp; s < ep; s++){
         if(*s == 0)
             return s - *pp;
@@ -50,6 +60,8 @@ fetchstr(uint addr, char **pp)
 int
 argint(int n, int *ip)
 {
+    // cprintf("argint\n");
+    // cprintf("%d\n", (myproc()->tf->esp) + 4 + 4*n);
     return fetchint((myproc()->tf->esp) + 4 + 4*n, ip);
 }
 
@@ -59,12 +71,12 @@ argint(int n, int *ip)
 int
 argptr(int n, char **pp, int size)
 {
+    // cprintf("argptr\n");
     int i;
-    struct proc *curproc = myproc();
-    int end = curproc->heap.start + curproc->heap.sz;
+
     if(argint(n, &i) < 0)
         return -1;
-    if(size < 0 || (uint)i >= end || (uint)i+size > end)
+    if(size < 0 || !checkaddr(i) || !checkaddr(i+size-1))
         return -1;
     *pp = (char*)i;
     return 0;
@@ -77,6 +89,7 @@ argptr(int n, char **pp, int size)
 int
 argstr(int n, char **pp)
 {
+    // cprintf("argstr\n");
     int addr;
     if(argint(n, &addr) < 0)
         return -1;
@@ -163,7 +176,7 @@ static char *syscall_names[] = {
 [SYS_close]     "close",
 [SYS_date]        "date",
 [SYS_dup2]        "dup2",
-[SYS_alarm]       "alarm"
+[SYS_alarm]       "alarm",
 [SYS_rstoregs]    "rstoregs" 
 };
 #endif
