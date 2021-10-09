@@ -31,5 +31,17 @@ SYSCALL(sleep)
 SYSCALL(uptime)
 SYSCALL(date)
 SYSCALL(dup2)
-SYSCALL(alarm)
-SYSCALL(rstoregs)
+
+
+.globl alarm
+    alarm:
+        pushl $rstoregs
+        movl $SYS_alarm, %eax
+        int $T_SYSCALL
+        add $0x04, %esp
+        ret
+
+.globl rstoregs
+    rstoregs:
+        movl $SYS_rstoregs, %eax
+        int $T_SYSCALL

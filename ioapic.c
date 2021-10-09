@@ -53,7 +53,7 @@ ioapicinit(void)
     ioapic = (volatile struct ioapic*)IOAPIC;
     maxintr = (ioapicread(REG_VER) >> 16) & 0xFF;
     id = ioapicread(REG_ID) >> 24;
-    if(id != ioapicid)
+    if(id != ioapicid)  // 这里假设了mp configuration table 中只有一个 ipapic，但是确实有的系统会有多个ioapic
         cprintf("ioapicinit: id isn't equal to ioapicid; not a MP\n");
 
     // Mark all interrupts edge-triggered, active high, disabled,

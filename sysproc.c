@@ -11,6 +11,7 @@ struct callerregs {
     uint eax;
     uint ecx;
     uint edx;
+    uint eip;
 };
 
 int
@@ -114,17 +115,19 @@ int
 sys_alarm(void)
 {
     int ticks;
-    void (*handler)();
+    uint handler;
+    uint handlerret;
 
-    if(argint(0, &ticks) < 0)
+    if(argptr(-1, (char**)&handlerret, 0) < 0)
+        return -1; 
+    if(argint(1, &ticks) < 0)
         return -1;
-    if(argptr(1, (char**)&handler, 1) < 0)
-        return -1;
-    if((uint)handler >= KERNBASE)
+    if(argptr(2, (char**)&handler, 0) < 0)
         return -1;
     myproc()->alarmticks = ticks;
     myproc()->alarmticksleft = ticks;
     myproc()->alarmhandler = handler;
+    myproc()->alarmhandlerret = handlerret;
     return 0;
 }
 
@@ -147,14 +150,15 @@ sys_rstoregs(void)
     struct callerregs *regs;
     struct trapframe *tf;
 
-    if(argptr(0, (char **)&regs, 3*4) < 0)
+    if(argptr(-1, (char **)&regs, sizeof(struct callerregs)) < 0) {
         return -1;
+    }
     tf = myproc()->tf;
+    tf->eip = regs->eip;
     tf->eax = regs->eax;
     tf->ecx = regs->ecx;
     tf->edx = regs->edx;
-    tf->eip = *(uint*)(tf->esp);
-    tf->esp +=  28;
+    tf->esp +=  20;
     myproc()->inalarmhandler = 0;
     return tf->eax;
 }

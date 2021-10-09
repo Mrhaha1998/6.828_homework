@@ -87,15 +87,31 @@ trap(struct trapframe *tf)
                     |注入代码地址         |
                     ---------------------- <--esp
                 */
-                *(uint*)(tf->esp - 4) = 0x0040cd00;    // int 0x49;  第二条指令
-                *(uint*)(tf->esp - 8) = 0x000019b8;   // mov  0x19, %eax; 第一条指令
-                *(uint*)(tf->esp - 12) = tf->edx;
-                *(uint*)(tf->esp - 16) = tf->ecx;
-                *(uint*)(tf->esp - 20) = tf->eax;  // 保存的寄存器的值
-                *(uint*)(tf->esp - 24) = tf->esp - 20; // 保存的寄存器的值的地址
-                *(uint*)(tf->esp - 28) = tf->eip;
-                *(uint*)(tf->esp - 32) = tf->esp - 8 ;   // 注入的代码的地址
-                tf->esp -= 32;
+                // *(uint*)(tf->esp - 4) = 0x0040cd00;    // int 0x49;  第二条指令
+                // *(uint*)(tf->esp - 8) = 0x000019b8;   // mov  0x19, %eax; 第一条指令
+                // *(uint*)(tf->esp - 12) = tf->edx;
+                // *(uint*)(tf->esp - 16) = tf->ecx;
+                // *(uint*)(tf->esp - 20) = tf->eax;  // 保存的寄存器的值
+                // *(uint*)(tf->esp - 24) = tf->esp - 20; // 保存的寄存器的值的地址
+                // *(uint*)(tf->esp - 28) = tf->eip;
+                // *(uint*)(tf->esp - 32) = tf->esp - 8 ;   // 注入的代码的地址
+                // tf->esp -= 32;
+                // tf->eip = (uint)myproc()->alarmhandler;
+                /*  ----------------------
+                    |eip edx ecx eax      |
+                    ----------------------
+                    |保存的寄存器的值的地址|
+                    ----------------------
+                    |rstoregs 地址       |
+                    --------------------  <--esp
+                */
+                *(uint*)(tf->esp - 4) = tf->eip;
+                *(uint*)(tf->esp - 8) = tf->edx;
+                *(uint*)(tf->esp - 12) = tf->ecx;
+                *(uint*)(tf->esp - 16) = tf->eax;
+                *(uint*)(tf->esp - 20) = tf->esp - 16; // 保存的寄存器的值的地址
+                *(uint*)(tf->esp - 24) = myproc()->alarmhandlerret ;   // rstoregs的地址
+                tf->esp -= 24;
                 tf->eip = (uint)myproc()->alarmhandler;
             }
         }
@@ -156,7 +172,7 @@ trap(struct trapframe *tf)
                 goto buildmap;
             }
             if(faddr < curproc->stack.start && (error & (FEC_WR | FEC_P)) == FEC_WR 
-                && ((tf->esp == faddr + 4 || tf->esp == faddr + 2)) && tf->esp == curproc->stack.start){  // 压入的是双字或者单字
+                && ((tf->esp == faddr + 4 || tf->esp == faddr + 2))){  // 压入的是双字或者单字
                 // stackoverflow
                 if(curproc->stack.sz == MAXSTACK){
                     goto stackoverflow;

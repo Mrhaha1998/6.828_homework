@@ -15,6 +15,8 @@ struct cpu cpus[NCPU];
 int ncpu;
 uchar ioapicid;
 
+
+// 检查 checksum
 static uchar
 sum(uchar *addr, int len)
 {
@@ -45,6 +47,7 @@ mpsearch1(uint a, int len)
 // 1) in the first KB of the EBDA;
 // 2) in the last KB of system base memory;
 // 3) in the BIOS ROM between 0xE0000 and 0xFFFFF.
+// https://stanislavs.org/helppc/bios_data_area.html
 static struct mp*
 mpsearch(void)
 {
@@ -52,16 +55,16 @@ mpsearch(void)
     uint p;
     struct mp *mp;
 
-    bda = (uchar *) P2V(0x400);
-    if((p = ((bda[0x0F]<<8)| bda[0x0E]) << 4)){
+    bda = (uchar *) P2V(0x400);  // DS = 40
+    if((p = ((bda[0x0F]<<8)| bda[0x0E]) << 4)){  // 40:0e 40:0f    存放的是 ebda的地址
         if((mp = mpsearch1(p, 1024)))
             return mp;
     } else {
-        p = ((bda[0x14]<<8)|bda[0x13])*1024;
+        p = ((bda[0x14]<<8)|bda[0x13])*1024;  // 40:13 40:14 存放的是 base memeory 地址 以1k为单位，所以乘上1024
         if((mp = mpsearch1(p-1024, 1024)))
             return mp;
     }
-    return mpsearch1(0xF0000, 0x10000);
+    return mpsearch1(0xF0000, 0x10000);   
 }
 
 // Search for an MP configuration table.    For now,
@@ -102,7 +105,7 @@ mpinit(void)
         panic("Expect to run on an SMP");
     ismp = 1;
     lapic = (uint*)conf->lapicaddr;
-    for(p=(uchar*)(conf+1), e=(uchar*)conf+conf->length; p<e; ){
+    for(p=(uchar*)(conf+1), e=(uchar*)conf+conf->length; p<e; ){    // conf + 1 跳过header
         switch(*p){
         case MPPROC:
             proc = (struct mpproc*)p;
@@ -130,9 +133,20 @@ mpinit(void)
     if(!ismp)
         panic("Didn't find a suitable machine");
 
+    // if imcrp bit is set， the imcr is present and pic mode is implemented.
+    // This register controls whether the interrupt signals that reach the BSP 
+    // come from the master PIC or from the local APIC.
+    // Before entering Symmetric I/O Mode, either the BIOS or the operating 
+    // system must switch out of PIC Mode by changing the IMCR.
     if(mp->imcrp){
         // Bochs doesn't support IMCR, so this doesn't run on Bochs.
         // But it would on real hardware.
+
+        // The IMCR is supported by two read/writable or write-only I/O ports, 22h and 23h, which receive
+        // address and data respectively.  To access the IMCR, write a value of 70h to I/O port 22h, which
+        // selects the IMCR.  Then write the data to I/O port 23h.  The power-on default value is zero, which
+        // connects the NMI and 8259 INTR lines directly to the BSP.  Writing a value of 01h forces the
+        // NMI and 8259 INTR signals to pass through the APIC LINT1 and LINT0 .
         outb(0x22, 0x70);     // Select IMCR
         outb(0x23, inb(0x23) | 1);    // Mask external interrupts.
     }

@@ -4,6 +4,9 @@
     "defs.h": "c",
     "syscall.h": "c",
     "user.h": "c",
-    "date.h": "c"
+    "date.h": "c",
+    "traps.h": "c",
+    "stat.h": "c",
+    "types.h": "c"
   }
 }

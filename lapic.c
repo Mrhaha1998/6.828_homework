@@ -58,6 +58,7 @@ lapicinit(void)
         return;
 
     // Enable local APIC; set spurious interrupt vector.
+    // SVR寄存器的第8位控制APIC软件启用/禁用，1为启用，0为禁用
     lapicw(SVR, ENABLE | (T_IRQ0 + IRQ_SPURIOUS));
 
     // The timer repeatedly counts down at bus frequency
@@ -93,7 +94,7 @@ lapicinit(void)
     while(lapic[ICRLO] & DELIVS)
         ;
 
-    // Enable interrupts on the APIC (but not on the processor).
+    // Enable interrupts on the APIC (but not on the processor). processor needs sti instrument
     lapicw(TPR, 0);
 }
 
