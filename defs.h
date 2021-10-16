@@ -127,10 +127,12 @@ void                        swtch(struct context**, struct context*);
 
 // spinlock.c
 void                        acquire(struct spinlock*);
+void                        acquirenocli(struct spinlock*);
 void                        getcallerpcs(void*, uint*);
 int                         holding(struct spinlock*);
 void                        initlock(struct spinlock*, char*);
 void                        release(struct spinlock*);
+void                        releasenosti(struct spinlock*);
 void                        pushcli(void);
 void                        popcli(void);
 

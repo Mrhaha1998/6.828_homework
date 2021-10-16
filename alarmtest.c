@@ -26,6 +26,10 @@ periodic()
     int b = 1;
     int c = 2;
     int d = 3;
-
-    printf(1, "alarm! a=%d b =%d c=%d c=%d\n", a, b, c, d);
+    int e, f, g, h;
+    e = a + b;
+    f = a + c;
+    g = c + d;
+    h = b + c;
+    printf(1, "alarm! %d %d %d %d %d %d %d %d\n", a, b, c, d, e, f, g, h);
 }

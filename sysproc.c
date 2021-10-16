@@ -58,11 +58,12 @@ sys_sbrk(void)
     if(argint(0, &n) < 0)
         return -1;
     curproc = myproc();    
-    if(n < 0)
-        return shrinkheap(curproc->pgdir, &curproc->heap, -n);
     a = curproc->heap.start + curproc->heap.sz;
-    if(expandheap(curproc->pgdir, &curproc->heap, n) < 0)
-        return -1;
+    if(n < 0)
+        shrinkheap(curproc->pgdir, &curproc->heap, -n);
+    else
+        if(expandheap(curproc->pgdir, &curproc->heap, n) < 0)
+            return -1;
     return a;
 }
 

@@ -117,7 +117,7 @@ trap(struct trapframe *tf)
         lapiceoi();
         break;
     case T_PGFLT:
-        if(myproc() != 0 && (tf->err & FEC_US)) {
+        if(myproc() != 0) {
             struct proc *curproc;
             uint error, faddr, a;
             pte_t *pte;
@@ -127,14 +127,18 @@ trap(struct trapframe *tf)
             error = tf->err;
             faddr = rcr2();
             curproc = myproc();
-            if((error & FEC_ALL) == FEC_ALL){   
+            /*
+                这里不能检查FEC_U，因为有的cow的内存会直接传入系统调用，
+                这样pagefault会发生在内核区
+            */
+            if((error & (FEC_P | FEC_WR)) == (FEC_P | FEC_WR)){   
                 // cow casue the fault
                 pte = walkpgdir(curproc->pgdir, (void*)faddr, 0);
                 if(pte == 0 || !((*pte & PTE_P) && (*pte & PTE_COW)))
-                    goto segmentfault;
+                    goto fault;
                 if((mem = kalloc()) == 0){
-                    cprintf("trap out of memory\n");
-                    goto segmentfault;
+                    cprintf("trap out of memory(1)\n");
+                    goto fault;
                 }    
                 a = PTE_ADDR(*pte);
                 memmove(mem, P2V(a), PGSIZE);
@@ -143,8 +147,8 @@ trap(struct trapframe *tf)
             if(curproc->heap.start <= faddr && faddr < curproc->heap.start + curproc->heap.sz){
                 // lazy allocation
                 if((mem = kalloc()) == 0){
-                    cprintf("trap out of memory\n");
-                    goto segmentfault;
+                    cprintf("trap out of memory(2)\n");
+                    goto fault;
                 }    
                 memset(mem, 0, PGSIZE);
                 goto buildmap;
@@ -156,31 +160,34 @@ trap(struct trapframe *tf)
                     goto stackoverflow;
                 }
                 if((mem = kalloc()) == 0){
-                    cprintf("trap out of memory\n");
-                    goto segmentfault;
+                    cprintf("trap out of memory(3)\n");
+                    goto fault;
                 }
-                cprintf("pid %d %s: expand stack\n", myproc()->pid, myproc()->name);
+                // cprintf("pid %d %s: expand stack\n", myproc()->pid, myproc()->name);
                 curproc->stack.start -= PGSIZE;
                 curproc->stack.sz += PGSIZE;    
                 memset(mem, 0, PGSIZE);
                 goto buildmap;
             }
+            goto fault;
         buildmap:
             if(mappage(curproc->pgdir, (void*)PGROUNDDOWN(faddr), V2P(mem), PTE_W|PTE_U) < 0){
-                cprintf("trap out of memory (2)\n");
+                cprintf("trap out of memory (4)\n");
                 kfree(mem);
-                goto segmentfault;
+                goto fault;
             }
             tlb_invalidate(curproc->pgdir, (void *)faddr);
             break;   
-        segmentfault:    
-            cprintf("pid %d %s: segmentfault\n", myproc()->pid, myproc()->name);
-            myproc()->killed = 1;
-            break;
         stackoverflow :  
-            cprintf("pid %d %s: stackoverflow\n", myproc()->pid, myproc()->name);
-            myproc()->killed = 1;
-            break;           
+            cprintf("pid %d %s: stackoverflow on cpu %d eip 0x%x addr 0x%x--kill proc\n", 
+                    curproc->pid, curproc->name, cpuid(), tf->eip, rcr2());
+            curproc->killed = 1;
+            break; 
+        fault:    
+            cprintf("pid %d %s: pagefault on cpu %d eip 0x%x addr 0x%x--kill proc\n",
+                    curproc->pid, curproc->name, cpuid(), tf->eip, rcr2());
+            curproc->killed = 1;
+            break;              
         }    
 
     //PAGEBREAK: 13
