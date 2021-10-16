@@ -39,7 +39,7 @@ tvinit(void)
         SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
     SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
 
-    initlock(&tickslock, "time");
+    initlock(&tickslock, "time", 1);
 }
 
 void

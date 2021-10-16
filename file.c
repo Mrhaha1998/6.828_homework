@@ -19,7 +19,7 @@ struct {
 void
 fileinit(void)
 {
-    initlock(&ftable.lock, "ftable");
+    initlock(&ftable.lock, "ftable", 0);
 }
 
 // Allocate a file structure.

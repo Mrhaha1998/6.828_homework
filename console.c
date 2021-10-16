@@ -288,7 +288,7 @@ consolewrite(struct inode *ip, char *buf, int n)
 void
 consoleinit(void)
 {
-    initlock(&cons.lock, "console");
+    initlock(&cons.lock, "console", 1);
 
     devsw[CONSOLE].write = consolewrite;
     devsw[CONSOLE].read = consoleread;

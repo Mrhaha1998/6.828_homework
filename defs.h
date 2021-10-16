@@ -130,11 +130,13 @@ void                        acquire(struct spinlock*);
 void                        acquirenocli(struct spinlock*);
 void                        getcallerpcs(void*, uint*);
 int                         holding(struct spinlock*);
-void                        initlock(struct spinlock*, char*);
+void                        initlock(struct spinlock*, char*, uint);
 void                        release(struct spinlock*);
 void                        releasenosti(struct spinlock*);
 void                        pushcli(void);
 void                        popcli(void);
+void                        popclii(uint);
+void                        pushclii(uint);
 
 // sleeplock.c
 void                        acquiresleep(struct sleeplock*);

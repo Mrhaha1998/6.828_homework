@@ -57,7 +57,7 @@ initlog(int dev)
         panic("initlog: too big logheader");
 
     struct superblock sb;
-    initlock(&log.lock, "log");
+    initlock(&log.lock, "log", 0);
     readsb(dev, &sb);
     log.start = sb.logstart;
     log.size = sb.nlog;

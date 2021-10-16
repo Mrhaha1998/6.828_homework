@@ -13,7 +13,7 @@
 void
 initsleeplock(struct sleeplock *lk, char *name)
 {
-    initlock(&lk->lk, "sleep lock");
+    initlock(&lk->lk, "sleep lock", 0);
     lk->name = name;
     lk->locked = 0;
     lk->pid = 0;

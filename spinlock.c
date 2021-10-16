@@ -10,11 +10,12 @@
 #include "spinlock.h"
 
 void
-initlock(struct spinlock *lk, char *name)
+initlock(struct spinlock *lk, char *name, uint cli)
 {
     lk->name = name;
     lk->locked = 0;
     lk->cpu = 0;
+    lk->cli = cli;
 }
 
 // Acquire the lock.
@@ -24,8 +25,9 @@ initlock(struct spinlock *lk, char *name)
 void
 acquire(struct spinlock *lk)
 {
-    pushcli(); // disable interrupts to avoid deadlock.
-    if(holding(lk))
+    // pushcli(); // disable interrupts to avoid deadlock.
+    pushclii(lk->cli);
+    if(lk->cli && holding(lk))
         panic("acquire");
 
     // The xchg is atomic.
@@ -38,7 +40,9 @@ acquire(struct spinlock *lk)
     __sync_synchronize();
 
     // Record info about lock acquisition for debugging.
+    pushclii(1);
     lk->cpu = mycpu();
+    popclii(1);
     getcallerpcs(&lk, lk->pcs);
 }
 
@@ -46,7 +50,7 @@ acquire(struct spinlock *lk)
 void
 release(struct spinlock *lk)
 {
-    if(!holding(lk))
+    if(lk->cli && !holding(lk))
         panic("release");
 
     lk->pcs[0] = 0;
@@ -64,7 +68,8 @@ release(struct spinlock *lk)
     // not be atomic. A real OS would use C atomics here.
     asm volatile("movl $0, %0" : "+m" (lk->locked) : );
 
-    popcli();
+    // popcli();
+    popclii(lk->cli);
 }
 
 // Record the current call stack in pcs[] by following the %ebp chain.
@@ -123,4 +128,32 @@ popcli(void)
     if(mycpu()->ncli == 0 && mycpu()->intena)
         sti();
 }
+
+void
+pushclii(uint clii)
+{
+    if(clii){
+        int eflags;
+
+        eflags = readeflags();
+        cli();
+        if(mycpu()->ncli == 0)
+            mycpu()->intena = eflags & FL_IF;
+        mycpu()->ncli += 1;
+    }
+}
+
+void
+popclii(uint clii)
+{
+    if(clii){
+        if(readeflags()&FL_IF)
+            panic("popcli - interruptible");
+        if(--mycpu()->ncli < 0)
+            panic("popcli");
+        if(mycpu()->ncli == 0 && mycpu()->intena)
+            sti();
+    }
+}
+
 

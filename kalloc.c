@@ -32,7 +32,7 @@ struct {
 void
 kinit1(void *vstart, void *vend)
 {
-    initlock(&kmem.lock, "kmem");
+    initlock(&kmem.lock, "kmem", 0);
     kmem.use_lock = 0;
     freerange(vstart, vend);
 }
