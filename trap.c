@@ -61,7 +61,7 @@ trap(struct trapframe *tf)
             exit();
         return;
     }
-
+    struct proc *curproc = myproc();
     switch(tf->trapno){
     case T_IRQ0 + IRQ_TIMER:
         if(cpuid() == 0){
@@ -70,11 +70,11 @@ trap(struct trapframe *tf)
             wakeup(&ticks);
             release(&tickslock);
         }
-        if(myproc() != 0 && (tf->cs & 3) == 3 
-            && myproc()->alarmhandler && --myproc()->alarmticksleft == 0){
-            myproc()->alarmticksleft = myproc()->alarmticks;
-            if(!myproc()->inalarmhandler){
-                myproc()->inalarmhandler = 1;
+        if(curproc != 0 && (tf->cs & 3) == 3 
+            && curproc->alarmhandler && --curproc->alarmticksleft == 0){
+            curproc->alarmticksleft = curproc->alarmticks;
+            if(!curproc->inalarmhandler){
+                curproc->inalarmhandler = 1;
                 /*  ----------------------
                     |eip edx ecx eax      |
                     ----------------------
@@ -88,9 +88,9 @@ trap(struct trapframe *tf)
                 *(uint*)(tf->esp - 12) = tf->ecx;
                 *(uint*)(tf->esp - 16) = tf->eax;
                 *(uint*)(tf->esp - 20) = tf->esp - 16; // 保存的寄存器的值的地址
-                *(uint*)(tf->esp - 24) = myproc()->alarmhandlerret ;   // rstoregs的地址
+                *(uint*)(tf->esp - 24) = curproc->alarmhandlerret ;   // rstoregs的地址
                 tf->esp -= 24;
-                tf->eip = (uint)myproc()->alarmhandler;
+                tf->eip = (uint)curproc->alarmhandler;
             }
         }
         lapiceoi();
@@ -117,8 +117,7 @@ trap(struct trapframe *tf)
         lapiceoi();
         break;
     case T_PGFLT:
-        if(myproc() != 0) {
-            struct proc *curproc;
+        if(curproc != 0) {
             uint error, faddr, a;
             pte_t *pte;
             char *mem;
@@ -126,7 +125,6 @@ trap(struct trapframe *tf)
             mem = 0;
             error = tf->err;
             faddr = rcr2();
-            curproc = myproc();
             /*
                 这里不能检查FEC_U，因为有的cow的内存会直接传入系统调用，
                 这样pagefault会发生在内核区
@@ -192,7 +190,7 @@ trap(struct trapframe *tf)
 
     //PAGEBREAK: 13
     default:
-        if(myproc() == 0 || (tf->cs&3) == 0){
+        if(curproc == 0 || (tf->cs&3) == 0){
             // In kernel, it must be our mistake.
             cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n",
                             tf->trapno, cpuid(), tf->eip, rcr2());
@@ -201,24 +199,24 @@ trap(struct trapframe *tf)
         // In user space, assume process misbehaved.
         cprintf("pid %d %s: trap %d err %d on cpu %d "
             "eip 0x%x addr 0x%x--kill proc\n",
-            myproc()->pid, myproc()->name, tf->trapno,
+            curproc->pid, curproc->name, tf->trapno,
             tf->err, cpuid(), tf->eip, rcr2());
-        myproc()->killed = 1;
+        curproc->killed = 1;
     }
 
     // Force process exit if it has been killed and is in user space.
     // (If it is still executing in the kernel, let it keep running
     // until it gets to the regular system call return.)
-    if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
+    if(curproc && curproc->killed && (tf->cs&3) == DPL_USER)
         exit();
 
     // Force process to give up CPU on clock tick.
     // If interrupts were on while locks held, would need to check nlock.
-    if(myproc() && myproc()->state == RUNNING &&
+    if(curproc && curproc->state == RUNNING &&
         tf->trapno == T_IRQ0+IRQ_TIMER)
         yield();
 
     // Check if the process has been killed since we yielded
-    if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
+    if(curproc && curproc->killed && (tf->cs&3) == DPL_USER)
         exit();
 }
