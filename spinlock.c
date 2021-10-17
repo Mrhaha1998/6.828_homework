@@ -9,6 +9,13 @@
 #include "proc.h"
 #include "spinlock.h"
 
+/*
+    add cli param 
+    this param represent if we should clear interrupte 
+    when we acquire the lock.
+    if the lock is used in interrupt we set cli = 1, eg idelock, cons.lock, ticklock
+    else we set cli = 0, eg spinlock in sleeplock
+*/
 void
 initlock(struct spinlock *lk, char *name, uint cli)
 {
@@ -24,10 +31,13 @@ initlock(struct spinlock *lk, char *name, uint cli)
 // other CPUs to waste time spinning to acquire it.
 void
 acquire(struct spinlock *lk)
-{
-    // pushcli(); // disable interrupts to avoid deadlock.
-    pushclii(lk->cli);
-    if(lk->cli && holding(lk))
+{ 
+    // pushcli();  // disable interrupts to avoid deadlock.
+
+    // if necessery(when the lock is used in interrupt handler),
+    // disable interrupts to avoid deadlock.
+    pushclii(lk->cli);  
+    if(lk->cli && holding(lk))  // if lk->cli = 1 we should not check holding , because holding checks cpu field
         panic("acquire");
 
     // The xchg is atomic.
@@ -40,9 +50,8 @@ acquire(struct spinlock *lk)
     __sync_synchronize();
 
     // Record info about lock acquisition for debugging.
-    pushclii(1);
-    lk->cpu = mycpu();
-    popclii(1);
+    if(lk->cli)             // if lk->cli = 1, we should not set cpu field
+        lk->cpu = mycpu();
     getcallerpcs(&lk, lk->pcs);
 }
 
@@ -50,7 +59,7 @@ acquire(struct spinlock *lk)
 void
 release(struct spinlock *lk)
 {
-    if(lk->cli && !holding(lk))
+    if(lk->cli && !holding(lk))  // if lk->cli = 1 we should not check holding , because holding checks cpu field
         panic("release");
 
     lk->pcs[0] = 0;
