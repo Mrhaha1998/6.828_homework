@@ -74,6 +74,21 @@ trap(struct trapframe *tf)
             && curproc->alarmhandler && --curproc->alarmticksleft == 0){
             curproc->alarmticksleft = curproc->alarmticks;
             if(!curproc->inalarmhandler){
+                if((tf->esp-24) < curproc->stack.start){
+                    char *mem = 0;
+                    if(curproc->stack.sz >= MAXSTACK)
+                        goto bad;
+                    if((mem = kalloc()) == 0)
+                        goto bad;
+                    memset(mem, 0, PGSIZE);    
+                    if(mappage(curproc->pgdir, (void*)PGROUNDDOWN(tf->esp-24), V2P(mem), PTE_W|PTE_U) < 0){
+                        kfree(mem);
+                        goto bad;
+                    }
+                    curproc->stack.start -= PGSIZE;
+                    curproc->stack.sz += PGSIZE;
+                    tlb_invalidate(curproc->pgdir, (void *)(tf->esp-24));
+                }
                 curproc->inalarmhandler = 1;
                 /*  ----------------------
                     |eip edx ecx eax      |
@@ -91,8 +106,16 @@ trap(struct trapframe *tf)
                 *(uint*)(tf->esp - 24) = curproc->alarmhandlerret ;   // rstoregs的地址
                 tf->esp -= 24;
                 tf->eip = (uint)curproc->alarmhandler;
+                goto timerack;
             }
+            bad:
+                curproc->killed = 1;
+                curproc->alarmhandler = 0;
+                curproc->alarmhandlerret = 0;
+                curproc->alarmticks = 0;
+                curproc->alarmticksleft = 0;
         }
+    timerack:
         lapiceoi();
         break;
     case T_IRQ0 + IRQ_IDE:
@@ -133,10 +156,10 @@ trap(struct trapframe *tf)
                 // cow casue the fault
                 pte = walkpgdir(curproc->pgdir, (void*)faddr, 0);
                 if(pte == 0 || !((*pte & PTE_P) && (*pte & PTE_COW)))
-                    goto fault;
+                    goto truepgfault;
                 if((mem = kalloc()) == 0){
                     cprintf("trap out of memory(1)\n");
-                    goto fault;
+                    goto truepgfault;
                 }    
                 a = PTE_ADDR(*pte);
                 memmove(mem, P2V(a), PGSIZE);
@@ -146,7 +169,7 @@ trap(struct trapframe *tf)
                 // lazy allocation
                 if((mem = kalloc()) == 0){
                     cprintf("trap out of memory(2)\n");
-                    goto fault;
+                    goto truepgfault;
                 }    
                 memset(mem, 0, PGSIZE);
                 goto buildmap;
@@ -154,38 +177,25 @@ trap(struct trapframe *tf)
             if(faddr < curproc->stack.start && (error & (FEC_WR | FEC_P)) == FEC_WR 
                 && ((tf->esp == faddr + 4 || tf->esp == faddr + 2))){  // 压入的是双字或者单字
                 // stackoverflow
-                if(curproc->stack.sz == MAXSTACK){
+                if(curproc->stack.sz >= MAXSTACK)
                     goto stackoverflow;
-                }
-                if((mem = kalloc()) == 0){
-                    cprintf("trap out of memory(3)\n");
-                    goto fault;
-                }
+                if((mem = kalloc()) == 0)
+                    goto stackoverflow;
                 // cprintf("pid %d %s: expand stack\n", myproc()->pid, myproc()->name);
                 curproc->stack.start -= PGSIZE;
                 curproc->stack.sz += PGSIZE;    
                 memset(mem, 0, PGSIZE);
                 goto buildmap;
             }
-            goto fault;
+            goto truepgfault;
         buildmap:
             if(mappage(curproc->pgdir, (void*)PGROUNDDOWN(faddr), V2P(mem), PTE_W|PTE_U) < 0){
-                cprintf("trap out of memory (4)\n");
+                cprintf("trap out of memory (3)\n");
                 kfree(mem);
-                goto fault;
+                goto truepgfault;
             }
             tlb_invalidate(curproc->pgdir, (void *)faddr);
             break;   
-        stackoverflow :  
-            cprintf("pid %d %s: stackoverflow on cpu %d eip 0x%x addr 0x%x--kill proc\n", 
-                    curproc->pid, curproc->name, cpuid(), tf->eip, rcr2());
-            curproc->killed = 1;
-            break; 
-        fault:    
-            cprintf("pid %d %s: pagefault on cpu %d eip 0x%x addr 0x%x--kill proc\n",
-                    curproc->pid, curproc->name, cpuid(), tf->eip, rcr2());
-            curproc->killed = 1;
-            break;              
         }    
 
     //PAGEBREAK: 13
@@ -203,7 +213,19 @@ trap(struct trapframe *tf)
             tf->err, cpuid(), tf->eip, rcr2());
         curproc->killed = 1;
     }
+    goto trapend;
 
+stackoverflow :  
+    cprintf("pid %d %s: stackoverflow on cpu %d eip 0x%x addr 0x%x--kill proc\n", 
+            curproc->pid, curproc->name, cpuid(), tf->eip, rcr2());
+    curproc->killed = 1;
+    goto trapend;
+truepgfault:    
+    cprintf("pid %d %s: pagefault on cpu %d eip 0x%x addr 0x%x--kill proc\n",
+            curproc->pid, curproc->name, cpuid(), tf->eip, rcr2());
+    curproc->killed = 1;
+    goto trapend;
+trapend:   
     // Force process exit if it has been killed and is in user space.
     // (If it is still executing in the kernel, let it keep running
     // until it gets to the regular system call return.)

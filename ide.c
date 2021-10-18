@@ -146,8 +146,11 @@ iderw(struct buf *b)
     if(b->dev != 0 && !havedisk1)
         panic("iderw: ide disk 1 not present");
 
+    // Function call chain cantaining iderw cannot begin with interrupt diable. 
     acquire(&idelock);    //DOC:acquire-lock
-
+    if(!mycpu()->intena){
+        panic("iderw: previous eflags should set IF previous");
+    }
     // Append b to idequeue.
     b->qnext = 0;
     for(pp=&idequeue; *pp; pp=&(*pp)->qnext)    //DOC:insert-queue
