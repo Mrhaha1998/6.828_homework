@@ -173,7 +173,7 @@ iinit(int dev)
 {
     int i = 0;
     
-    initlock(&icache.lock, "icache", 0);
+    initlock(&icache.lock, "icache", 1);
     for(i = 0; i < NINODE; i++) {
         initsleeplock(&icache.inode[i].lock, "inode");
     }

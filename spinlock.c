@@ -13,7 +13,7 @@
     add cli param 
     this param represent if we should clear interrupte 
     when we acquire the lock.
-    if the lock is used in interrupt we set cli = 1, eg idelock, cons.lock, ticklock
+    if the lock is used in interrupt we set cli = 1, eg idelock, cons.lock, ticklock, ptable.lock
     else we set cli = 0, eg spinlock in sleeplock
 */
 void
