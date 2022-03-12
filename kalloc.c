@@ -13,6 +13,7 @@ void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
                                      // defined by the kernel linker script in kernel.ld
 extern uint pgref[];
+extern struct spinlock pgref_lock;
 
 struct run {
     struct run *next;
@@ -34,6 +35,7 @@ kinit1(void *vstart, void *vend)
 {
     initlock(&kmem.lock, "kmem", 1);
     kmem.use_lock = 0;
+    initlock(&pgref_lock, "pgref", 1);
     freerange(vstart, vend);
 }
 
@@ -98,9 +100,13 @@ kalloc(void)
 
 void kdecref(uint pa)
 {
+    acquire(&pgref_lock);
     if(--pgref[PGNUM(pa)] == 0) {
+        release(&pgref_lock);
         kfree(P2V(pa));
+        return;
     }
+    release(&pgref_lock);
 }
 
 

@@ -6,10 +6,12 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "spinlock.h"
 
 extern char data[];    // defined by kernel.ld
 pde_t *kpgdir;    // for use in scheduler()
 uint pgref[PHYSTOP >> PTXSHIFT];
+struct spinlock pgref_lock;
 
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
@@ -319,7 +321,9 @@ int mappage(pde_t *pgdir, void *va, uint pa, int perm)
 
     if((pte = walkpgdir(pgdir, va, 1)) == 0)
         return -1;
+    acquire(&pgref_lock);
     ++pgref[PGNUM(pa)];
+    release(&pgref_lock);
 	if((*pte & PTE_P))
 		unmappage(pgdir, va, 0);
 	*pte = pa | perm | PTE_P;
